@@ -14,63 +14,20 @@ class Shader
 {
 public:
     unsigned int vertexId, fragmentId, tessControlId, tessEvalId, geometryId, computeId;
+    unsigned int MAX_SHADERS = 6;
     unsigned int programId;
 
     // constructor generates the shader on the fly
     // ------------------------------------------------------------------------
     Shader(const char* vertexPath, const char* fragmentPath)
     {
-        // 1. retrieve the vertex/fragment source code from filePath
-        std::string vertexCode;
-        std::string fragmentCode;
-        std::ifstream vertexShaderFile;
-        std::ifstream fragmentShaderFile;
-        // ensure ifstream objects can throw exceptions:
-        vertexShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        fragmentShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        try
-        {
-            // open files
-            vertexShaderFile.open(vertexPath);
-            fragmentShaderFile.open(fragmentPath);
-            std::stringstream vertexShaderStream, fragmentShaderStream;
-            // read file's buffer contents into streams
-            vertexShaderStream << vertexShaderFile.rdbuf();
-            fragmentShaderStream << fragmentShaderFile.rdbuf();
-            // close file handlers
-            vertexShaderFile.close();
-            fragmentShaderFile.close();
-            // convert stream into string
-            vertexCode = vertexShaderStream.str();
-            fragmentCode = fragmentShaderStream.str();
-        }
-        catch (std::ifstream::failure& e)
-        {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
-        }
-        const char* vShaderCode = vertexCode.c_str();
-        const char* fShaderCode = fragmentCode.c_str();
-        // 2. compile shaders
-        unsigned int vertexShader, fragmentShader;
-        // vertex shader
-        vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader, 1, &vShaderCode, NULL);
-        glCompileShader(vertexShader);
-        checkForCompileErrors(vertexShader, "VERTEX");
-        // fragment Shader
-        fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader, 1, &fShaderCode, NULL);
-        glCompileShader(fragmentShader);
-        checkForCompileErrors(fragmentShader, "FRAGMENT");
-        // shader Program
-        shaderProgramId = glCreateProgram();
-        glAttachShader(shaderProgramId, vertexShader);
-        glAttachShader(shaderProgramId, fragmentShader);
-        glLinkProgram(shaderProgramId);
-        checkForCompileErrors(shaderProgramId, "PROGRAM");
-        // delete the shaders as they're linked into our program now and no longer necessary
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
+        vertexId, fragmentId, tessControlId, tessEvalId, geometryId, computeId = 0;
+        programId = glCreateProgram();
+        addShader(vertexPath, GL_VERTEX_SHADER);
+        addShader(fragmentPath, GL_FRAGMENT_SHADER);
+    }
+    ~Shader() {
+        glDeleteProgram(programId);
     }
     // activate the shader
     // ------------------------------------------------------------------------
@@ -82,91 +39,53 @@ public:
     // ------------------------------------------------------------------------
     void setUniformBool(const std::string& name, bool value) const
     {
-        glUniform1i(glGetUniformLocation(shaderProgramId, name.c_str()), (int)value);
+        glUniform1i(glGetUniformLocation(programId, name.c_str()), (int)value);
     }
     // ------------------------------------------------------------------------
     void setUniformInt(const std::string& name, int value) const
     {
-        glUniform1i(glGetUniformLocation(shaderProgramId, name.c_str()), value);
+        glUniform1i(glGetUniformLocation(programId, name.c_str()), value);
     }
     // ------------------------------------------------------------------------
     void setUniformFloat(const std::string& name, float value) const
     {
-        glUniform1f(glGetUniformLocation(shaderProgramId, name.c_str()), value);
-    }
-
-// checks if shader type is a valid shader
-//-------------------------------------------------------------------------------
-    bool isValidShaderType(GLenum shaderType) {
-        if (shaderType == GL_VERTEX_SHADER ||
-            shaderType == GL_FRAGMENT_SHADER ||
-            shaderType == GL_GEOMETRY_SHADER ||
-            shaderType == GL_TESS_CONTROL_SHADER ||
-            shaderType == GL_TESS_EVALUATION_SHADER ||
-            shaderType == GL_COMPUTE_SHADER ||
-            ) {
-            return true;
-        }
-        else {
-            return false;
-        }
+        glUniform1f(glGetUniformLocation(programId, name.c_str()), value);
     }
 
 // adds shader to program, does not compile the actual prgoram
 //-------------------------------------------------------------------------------
     void addShader(const char* shaderFilePath, GLenum shaderType) {
-        std::string shaderCode;
-        std::ifstream shaderFileBuffer;
-        shaderFileBuffer.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        try
-        {
-            // open files
-            shaderFileBuffer.open(shaderFilePath);
-            std::stringstream shaderStringStream;
-            // read file's buffer contents into streams
-            shaderStringStream << shaderFileBuffer.rdbuf();
+        std::string shaderSource;
+        std::ifstream shaderFile;
+        std::stringstream shaderStream;
 
-            // close file handlers
-            shaderFileBuffer.close();
-            // convert stream into string
-            shaderCode = shaderStringStream.str();
-
+        shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+        try {
+            shaderFile.open(shaderFilePath);
+            shaderStream << shaderFile.rdbuf();
+            shaderFile.close();
+            shaderSource = shaderStream.str();
         }
-        catch (std::ifstream::failure& e)
-        {
+        catch (std::ifstream::failure& e) {
             std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
         }
-        const char* shaderCode_cstr = shaderCode.c_str();
-        // 2. compile shaders
-        unsigned int shaderId;
-        // vertex shader
-        switch (shaderType) {
-        case GL_VERTEX_SHADER:
-            vertexId = glCreateShader(GL_VERTEX_SHADER);
-            std::string shaderSource = getShaderSource(shaderFilePath);
+        attachShader(shaderType, shaderSource.c_str());
+    }
+    // links and compiles shader program
+//--------------------------------------------
+    void linkAndCompile() {
+        glLinkProgram(programId);
 
-            break;
+        // cleanup
+        unsigned int shaderProgramIds[6] = { vertexId, fragmentId, tessControlId, tessEvalId, geometryId, computeId };
+        for (unsigned int i = 0; i < MAX_SHADERS; i++) {
+            std::cout << "Shdaer Id: " << shaderProgramIds[i] << std::endl;
+            if (shaderProgramIds[i] != 0) {
+                glDetachShader(programId, shaderProgramIds[i]);
+                glDeleteShader(shaderProgramIds[i]);
+
+            }
         }
-
-        vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader, 1, &vShaderCode, NULL);
-        glCompileShader(vertexShader);
-        checkForCompileErrors(vertexShader, "VERTEX");
-        // fragment Shader
-        fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader, 1, &fShaderCode, NULL);
-        glCompileShader(fragmentShader);
-        checkForCompileErrors(fragmentShader, "FRAGMENT");
-        // shader Program
-        shaderProgramId = glCreateProgram();
-        glAttachShader(shaderProgramId, vertexShader);
-        glAttachShader(shaderProgramId, fragmentShader);
-        glLinkProgram(shaderProgramId);
-        checkForCompileErrors(shaderProgramId, "PROGRAM");
-        // delete the shaders as they're linked into our program now and no longer necessary
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-
     }
 
 private:
@@ -196,33 +115,58 @@ private:
         }
     }
 
-// returns the shader source as a string
- //-----------------------------------------------------------------
-    std::string getShaderSource(const char* shaderFilePath) {
-        const char* shaderSource;
-        std::ifstream shaderFile;
-        std::stringstream shaderStream;
-
-        shaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-        try {
-            shaderFile.open(shaderFilePath);
-            shaderStream << shaderFile.rdbuf();
-            shaderFile.close();
-            shaderSource = shaderStream.str().c_str();
-            return shaderSource;
-        }
-        catch (std::ifstream::failure& e) {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESFULLY_READ" << std::endl;
-        }
-
-    }
 
 // compiles and attaches a shader to the program
 //-------------------------------------------------
-    void attachShader(unsigned int shaderId, const char* shaderSource) {
-        glShaderSource(shaderId, 1, &shaderSource, 0);
-        glCompileShader(shaderId);
-        glAttachShader(shaderId);
+    void attachShader(GLenum shaderType, const char* shaderSource) {
+
+        switch (shaderType) {
+        case GL_VERTEX_SHADER:
+            vertexId = glCreateShader(GL_VERTEX_SHADER);
+            glShaderSource(vertexId, 1, &shaderSource, 0);
+            glCompileShader(vertexId);
+            glAttachShader(programId,vertexId);
+            checkForCompileErrors(vertexId, "VERTEX");
+            break;
+        case GL_FRAGMENT_SHADER:
+            fragmentId = glCreateShader(GL_FRAGMENT_SHADER);
+            glShaderSource(fragmentId, 1, &shaderSource, 0);
+            glCompileShader(fragmentId);
+            glAttachShader(programId, fragmentId);
+            checkForCompileErrors(fragmentId, "FRAGMENT");
+            break;
+        case GL_GEOMETRY_SHADER:
+            geometryId = glCreateShader(GL_GEOMETRY_SHADER);
+            glShaderSource(geometryId, 1, &shaderSource, 0);
+            glCompileShader(geometryId);
+            glAttachShader(programId, geometryId);
+            checkForCompileErrors(geometryId, "GEOMETRY");
+            break;
+        case GL_TESS_CONTROL_SHADER:
+            tessControlId = glCreateShader(GL_TESS_CONTROL_SHADER);
+            glShaderSource(tessControlId, 1, &shaderSource, 0);
+            glCompileShader(tessControlId);
+            glAttachShader(programId, tessControlId);
+            checkForCompileErrors(tessControlId, "TESS_CONTROL");
+            break;
+        case GL_TESS_EVALUATION_SHADER:
+            tessEvalId = glCreateShader(GL_TESS_EVALUATION_SHADER);
+            glShaderSource(tessEvalId, 1, &shaderSource, 0);
+            glCompileShader(tessEvalId);
+            glAttachShader(programId, tessEvalId);
+            checkForCompileErrors(tessEvalId, "TESS_EVAL");
+            break;
+        case GL_COMPUTE_SHADER:
+            computeId = glCreateShader(GL_COMPUTE_SHADER);
+            glShaderSource(computeId, 1, &shaderSource, 0);
+            glCompileShader(computeId);
+            glAttachShader(programId, computeId);
+            checkForCompileErrors(computeId, "COMPUTE");
+            break;
+        default:
+            std::cout << "ERROR: A valid shader type was not entered\n";
+            break;
+        }
     }
 };
 #endif

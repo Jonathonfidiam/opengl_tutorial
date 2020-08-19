@@ -4,4 +4,4 @@ uniform vec4 randomColor;
 void main()
 {
    FragColor = randomColor;
-}\0;
+};
