@@ -2,9 +2,9 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <iostream>
 #include "Shader.h"
 
-#include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -49,7 +49,7 @@ int main()
 
     // build and compile our shader program1
     // ------------------------------------
-    Shader shader1 = Shader("vertexShader.txt", "fragmentShader.txt");
+    Shader shader1 = Shader("../../vertexShader.glsl", "../../fragmentShader.glsl");
     shader1.linkAndCompile();
 
 

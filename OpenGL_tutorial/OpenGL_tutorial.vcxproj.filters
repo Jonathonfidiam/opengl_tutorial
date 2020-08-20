@@ -31,14 +31,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="vertexShader.txt">
+    <Text Include="vertexShader.glsl">
       <Filter>Resource Files</Filter>
     </Text>
-    <Text Include="fragmentShadertxt.txt">
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fragmentShader.glsl">
       <Filter>Resource Files</Filter>
-    </Text>
-    <Text Include="fragmentShader2txt.txt">
+    </None>
+    <None Include="fragmentShader2.glsl">
       <Filter>Resource Files</Filter>
-    </Text>
+    </None>
   </ItemGroup>
 </Project>
